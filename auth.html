@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuizForge | Account</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      min-height: 100vh; display: grid; place-items: center;
+      font-family: system-ui, sans-serif;
+      background: #10131f; color: #f5f6ff;
+    }
+    main {
+      width: 100%; max-width: 420px; padding: 24px;
+      background: #1b2030; border: 1px solid #343b50;
+      border-radius: 20px;
+    }
+    h1 { margin-top: 0; }
+    p { color: #b9c2d9; line-height: 1.5; }
+    input, button {
+      width: 100%; padding: 13px; margin-top: 12px;
+      border-radius: 10px; font: inherit;
+    }
+    input {
+      color: white; background: #10131f;
+      border: 1px solid #454d65;
+    }
+    button {
+      border: 0; background: #9cafff;
+      color: #10131f; font-weight: 700;
+    }
+    button.secondary {
+      background: #30384d; color: white;
+    }
+    #status { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>⚡ QuizForge</h1>
+  <p>Sign in or create your student account.</p>
+
+  <input id="email" type="email" placeholder="Email address"
+    autocomplete="email">
+  <input id="password" type="password" placeholder="Password (at least 8 characters)"
+    autocomplete="current-password">
+
+  <button id="signup">Create account</button>
+  <button id="login" class="secondary">Sign in</button>
+  <button id="logout" class="secondary">Sign out</button>
+  <p id="status" role="status">Connecting to QuizForge...</p>
+</main>
+
+<script type="module">
+  import { createClient } from
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+  const SUPABASE_URL = "https://cfhtsokqjdaaqzcprbgn.supabase.co/rest/v1/";
+  const SUPABASE_KEY = "sb_publishable_6H0JfKDLxEci2zQhl7RL1w_8wqIldQ9";
+
+  const status = document.getElementById("status");
+  const email = document.getElementById("email");
+  const password = document.getElementById("password");
+
+  let supabase;
+
+  try {
+    if (
+      !SUPABASE_URL.startsWith("https://") ||
+      SUPABASE_URL.includes("PASTE_") ||
+      SUPABASE_KEY.includes("PASTE_") ||
+      !SUPABASE_KEY
+    ) {
+      throw new Error("Add your Supabase URL and publishable key first.");
+    }
+
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error && error.name !== "AuthSessionMissingError") {
+      console.warn(error.message);
+    }
+
+    status.textContent = data.user
+      ? "Signed in as " + data.user.email
+      : "Ready. Create an account or sign in.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+
+  document.getElementById("signup").onclick = async () => {
+    if (!supabase) return;
+    if (!email.value.trim() || password.value.length < 8) {
+      status.textContent = "Enter an email and a password of at least 8 characters.";
+      return;
+    }
+
+    status.textContent = "Creating account...";
+    const { data, error } = await supabase.auth.signUp({
+      email: email.value.trim(),
+      password: password.value,
+      options: {
+        emailRedirectTo: location.href.split("?")[0]
+      }
+    });
+
+    status.textContent = error
+      ? error.message
+      : data.session
+        ? "Account created and signed in!"
+        : "Account request successful. Check your email to confirm your account.";
+  };
+
+  document.getElementById("login").onclick = async () => {
+    if (!supabase) return;
+    status.textContent = "Signing in...";
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.value.trim(),
+      password: password.value
+    });
+    status.textContent = error
+      ? error.message
+      : "Signed in successfully as " + data.user.email;
+  };
+
+  document.getElementById("logout").onclick = async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    status.textContent = error ? error.message : "Signed out successfully.";
+  };
+</script>
+</body>
+</html>
